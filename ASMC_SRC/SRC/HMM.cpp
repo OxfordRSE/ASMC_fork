@@ -1246,6 +1246,79 @@ pair<vector<float>, vector<float>> HMM::decodeSummarize(const PairObservations& 
   return std::make_pair(posterior_map, posterior_mean);
 }
 
+// Instead of returning a whole posterior, return the MAP and posterior mean
+Eigen::ArrayXXf HMM::decodeSummarizeEigen(const PairObservations& observations)
+{
+  vector<vector<float>> posterior = decode(observations);
+  size_t num_discretizations = m_decodingQuant.expectedTimes.size();
+  assert(num_discretizations == posterior.size());
+
+  Eigen::ArrayXXf map_mean = Eigen::ArrayXXf::Zero(2, posterior[0].size());
+  vector<float> posterior_max_so_far(posterior[0].size(), 0);
+
+  for (int i = 0; i < posterior.size(); ++i) {
+    for (int j = 0; j < posterior[0].size(); ++j) {
+      map_mean(1, j) += posterior[i][j] * m_decodingQuant.expectedTimes[i];
+      if (posterior[i][j] > posterior_max_so_far[j]) {
+        posterior_max_so_far[j] = posterior[i][j];
+        map_mean(0, j) = m_decodingQuant.expectedTimes[i];
+      }
+    }
+  }
+  return map_mean;
+}
+
+
+// decode a batch
+// TODO: deal with the fact that we are mutating obsBatch in the process
+Eigen::ArrayXXf HMM::decodeSummarizeBatch(vector<PairObservations>& obsBatch, bool print_time)
+{
+  auto t0 = std::chrono::high_resolution_clock().now();
+
+  int actualBatchSize = static_cast<int>(obsBatch.size());
+  int extend_count = 0;
+  while (obsBatch.size() % VECX != 0) { // fill to size divisible by VECX
+    obsBatch.push_back(obsBatch.back());
+    extend_count += 1;
+  }
+  int paddedBatchSize = static_cast<int>(obsBatch.size());
+  decodeBatch(obsBatch);
+  while (extend_count > 0) {
+    obsBatch.pop_back();
+    extend_count -= 1;
+  }
+
+  auto t1 = std::chrono::high_resolution_clock().now();
+
+  Eigen::ArrayXXf map_mean = Eigen::ArrayXXf::Zero(2*actualBatchSize, sequenceLength);
+  Eigen::ArrayXXf posterior_max_so_far = Eigen::ArrayXXf::Zero(actualBatchSize, sequenceLength);
+
+  // TODO: vectorize this part
+  for (long int pos = 0; pos < sequenceLength; pos++) {
+    for (int k = 0; k < states; k++) {
+      for (int v = 0; v < actualBatchSize;
+           v++) { // only loop over actual (not padding) pairs
+        float value = m_alphaBuffer[(pos * states + k) * paddedBatchSize + v];
+        map_mean(actualBatchSize + v, pos) += value * m_decodingQuant.expectedTimes[k];
+        if (value > posterior_max_so_far(v, pos)) {
+          posterior_max_so_far(v, pos) = value;
+          map_mean(v, pos) = m_decodingQuant.expectedTimes[k];
+        }
+      }
+    }
+  }
+
+  auto t2 = std::chrono::high_resolution_clock().now();
+
+  if (print_time) {
+    typedef std::chrono::microseconds us;
+    cout << "us for decoding: " << std::chrono::duration_cast<us>(t1 - t0).count() << endl;
+    cout << "us for summarizing: " << std::chrono::duration_cast<us>(t2 - t1).count() << endl;
+  }
+
+  return map_mean;
+}
+
 float HMM::roundMorgans(float gen)
 {
   float gene1e10 = gen * 1e10f;

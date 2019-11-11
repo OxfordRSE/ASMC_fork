@@ -120,6 +120,10 @@ class HMM {
 
   pair<vector<float>, vector<float>> decodeSummarize(const PairObservations& observations);
 
+  Eigen::ArrayXXf decodeSummarizeEigen(const PairObservations& observations);
+
+  Eigen::ArrayXXf decodeSummarizeBatch(vector<PairObservations>& obsBatch, bool print_time = false);
+
   /// decode a single pair
   ///
   /// i and j must be a valid index in `individuals`
