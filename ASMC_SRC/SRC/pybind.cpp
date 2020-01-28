@@ -29,7 +29,7 @@ PYBIND11_MAKE_OPAQUE(std::vector<bool>)
 PYBIND11_MAKE_OPAQUE(std::vector<float>)
 PYBIND11_MAKE_OPAQUE(std::vector <std::vector <float> >)
 PYBIND11_MAKE_OPAQUE(std::vector<Individual>)
-PYBIND11_MAKE_OPAQUE(std::vector<PairObservations>)
+// PYBIND11_MAKE_OPAQUE(std::vector<PairObservations>)
 PYBIND11_MAKE_OPAQUE(std::unordered_map<float, std::vector<float>>)
 PYBIND11_MAKE_OPAQUE(std::unordered_map<int, std::vector<float>>)
 PYBIND11_MAKE_OPAQUE(DecodingQuantities)
@@ -55,7 +55,7 @@ PYBIND11_MODULE(pyASMC, m) {
     py::bind_vector<std::vector<float>>(m, "VectorFloat");
     py::bind_vector<std::vector<Individual>>(m, "VectorIndividual");
     py::bind_vector<std::vector<uint>>(m, "VectorUInt");
-    py::bind_vector<std::vector<PairObservations>>(m, "VectorPairObservations");
+    // py::bind_vector<std::vector<PairObservations>>(m, "VectorPairObservations");
     py::bind_vector<std::vector<std::vector<float>>>(m, "Matrix");
     py::bind_map<std::unordered_map<float, std::vector<float>>>(m, "UMapFloatToVectorFloat");
     py::bind_map<std::unordered_map<int, std::vector<float>>>(m, "UMapIntToVectorFloat");
@@ -171,6 +171,10 @@ PYBIND11_MODULE(pyASMC, m) {
         .def("decode", &HMM::decode)
         .def("decodeAll", &HMM::decodeAll)
         .def("decodeSummarize", &HMM::decodeSummarize)
+        .def("decodeSummarizeEigen", &HMM::decodeSummarizeEigen)
+        .def("decodeSummarizeBatch", &HMM::decodeSummarizeBatch,
+             "Decodes a batch and returns MAP and posterior mean",
+             "obsBatch"_a, "print_time"_a = false)
         .def("getDecodingReturnValues", &HMM::getDecodingReturnValues)
         .def("decodePair", &HMM::decodePair)
         .def("decodePairs", &HMM::decodePairs)
